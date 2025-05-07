@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二阶魔方模拟器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .cube-container {
+            width: 200px;
+            height: 200px;
+            perspective: 800px;
+            margin: 30px 0;
+        }
+
+        .cube {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(-20deg) rotateY(-30deg);
+            transition: transform 0.3s ease-in-out; /* 添加过渡效果 */
+        }
+
+        .face {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            transform-style: preserve-3d;
+        }
+
+        .sticker {
+            width: 100%;
+            height: 100%;
+            border: 1px solid rgba(0,0,0,0.2);
+            box-sizing: border-box;
+        }
+
+        /* 面位置 */
+        .front { transform: translateZ(50px); }
+        .back { transform: translateZ(-50px) rotateY(180deg); }
+        .right { transform: rotateY(90deg) translateZ(50px); }
+        .left { transform: rotateY(-90deg) translateZ(50px); }
+        .top { transform: rotateX(90deg) translateZ(50px); }
+        .bottom { transform: rotateX(-90deg) translateZ(50px); }
+
+        /* 颜色 */
+        .white { background: #fff; }
+        .yellow { background: #ffeb3b; }
+        .red { background: #f44336; }
+        .orange { background: #ff9800; }
+        .blue { background: #2196f3; }
+        .green { background: #4caf50; }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 10px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <h2>二阶魔方模拟器</h2>
+    <div class="cube-container">
+        <div class="cube" id="cube">
+            </div>
+    </div>
+
+    <div class="controls">
+        <button onclick="rotate('R', false)">右顺 (R)</button>
+        <button onclick="rotate('R', true)">右逆 (R')</button>
+        <button onclick="rotate('U', false)">上顺 (U)</button>
+        <button onclick="rotate('U', true)">上逆 (U')</button>
+        <button onclick="rotate('F', true)">前顺 (F)</button>
+        <button onclick="rotate('F', false)">前逆 (F')</button>
+        <button onclick="rotate('L', false)">左顺 (L)</button>
+        <button onclick="rotate('L', true)">左逆 (L')</button>
+        <button onclick="rotate('D', false)">下顺 (D)</button>
+        <button onclick="rotate('D', true)">下逆 (D')</button>
+        <button onclick="rotate('B', true)">后顺 (B)</button>
+        <button onclick="rotate('B', false)">后逆 (B')</button>
+        <button onclick="resetCube()" style="grid-column: span 3">重置魔方</button>
+    </div>
+
+<script>
+class RubiksCube2x2 {
+    constructor() {
+        this.cubeElement = document.getElementById('cube');
+        this.cubies = [];
+        this.initCube();
+    }
+
+    // 初始化魔方
+    initCube() {
+        this.cubeElement.innerHTML = '';
+        this.cubies = [
+            // 前上左 (0)
+            { position: [0, 0, 0], colors: { front: 'white', top: 'blue', left: 'orange' } },
+            // 前上右 (1)
+            { position: [1, 0, 0], colors: { front: 'white', top: 'blue', right: 'red' } },
+            // 前下左 (2)
+            { position: [0, 1, 0], colors: { front: 'white', bottom: 'green', left: 'orange' } },
+            // 前下右 (3)
+            { position: [1, 1, 0], colors: { front: 'white', bottom: 'green', right: 'red' } },
+            // 后上左 (4)
+            { position: [0, 0, 1], colors: { back: 'yellow', top: 'blue', left: 'orange' } },
+            // 后上右 (5)
+            { position: [1, 0, 1], colors: { back: 'yellow', top: 'blue', right: 'red' } },
+            // 后下左 (6)
+            { position: [0, 1, 1], colors: { back: 'yellow', bottom: 'green', left: 'orange' } },
+            // 后下右 (7)
+            { position: [1, 1, 1], colors: { back: 'yellow', bottom: 'green', right: 'red' } }
+        ];
+        this.renderCube();
+    }
+
+    // 渲染魔方
+    renderCube() {
+        this.cubeElement.innerHTML = '';
+        const faceDetails = [
+            { name: 'front', normal: [0, 0, 1] },
+            { name: 'back', normal: [0, 0, -1] },
+            { name: 'right', normal: [1, 0, 0] },
+            { name: 'left', normal: [-1, 0, 0] },
+            { name: 'top', normal: [0, 1, 0] },
+            { name: 'bottom', normal: [0, -1, 0] }
+        ];
+
+        faceDetails.forEach(face => {
+            const faceElement = document.createElement('div');
+            faceElement.className = `face ${face.name}`;
+            for (let i = 0; i < 4; i++) {
+                const sticker = document.createElement('div');
+                sticker.className = 'sticker';
+                faceElement.appendChild(sticker);
+            }
+            this.cubeElement.appendChild(faceElement);
+        });
+        this.updateDisplay();
+    }
+
+    // 更新显示
+    updateDisplay() {
+        const stickers = document.querySelectorAll('.sticker');
+        stickers.forEach(sticker => sticker.className = 'sticker'); // Reset all sticker colors
+
+        this.cubies.forEach(cubie => {
+            const [x, y, z] = cubie.position;
+            const isFront = z === 0;
+            const isBack = z === 1;
+            const isRight = x === 1;
+            const isLeft = x === 0;
+            const isTop = y === 0;
+            const isBottom = y === 1;
+
+            if (isFront) this.setStickerColor('front', x + y * 2, cubie.colors.front);
+            if (isBack) this.setStickerColor('back', x + y * 2, cubie.colors.back);
+            if (isRight) this.setStickerColor('right', z + y * 2, cubie.colors.right);
+            if (isLeft) this.setStickerColor('left', 1 - z + y * 2, cubie.colors.left);
+            if (isTop) this.setStickerColor('top', x + (1 - z) * 2, cubie.colors.top);
+            if (isBottom) this.setStickerColor('bottom', x + z * 2, cubie.colors.bottom);
+        });
+    }
+
+    setStickerColor(faceName, position, color) {
+        const sticker = document.querySelector(`.face.${faceName} .sticker:nth-child(${position + 1})`);
+        if (sticker) {
+            sticker.classList.add(color);
+        }
+    }
+
+    // 旋转一个面
+    rotate(face, clockwise) {
+        let affectedCubies;
+        switch (face) {
+            case 'R': affectedCubies = this.cubies.filter(c => c.position[0] === 1); break;
+            case 'L': affectedCubies = this.cubies.filter(c => c.position[0] === 0); break;
+            case 'U': affectedCubies = this.cubies.filter(c => c.position[1] === 0); break;
+            case 'D': affectedCubies = this.cubies.filter(c => c.position[1] === 1); break;
+            case 'F': affectedCubies = this.cubies.filter(c => c.position[2] === 0); break;
+            case 'B': affectedCubies = this.cubies.filter(c => c.position[2] === 1); break;
+            default: return;
+        }
+
+        affectedCubies.forEach(cubie => this.rotateCubie(cubie, face, clockwise));
+        this.updateDisplay();
+    }
+
+    // 旋转单个小方块
+    rotateCubie(cubie, face, clockwise) {
+        let [x, y, z] = cubie.position;
+        const originalColors = { ...cubie.colors };
+
+        switch (face) {
+            case 'R':
+                [y, z] = this.rotateDimension(y, z, clockwise);
+                this.rotateColors(cubie.colors, ['top', 'front', 'bottom', 'back'], clockwise);
+                break;
+            case 'L':
+                [y, z] = this.rotateDimension(y, z, !clockwise);
+                this.rotateColors(cubie.colors, ['top', 'back', 'bottom', 'front'], clockwise);
+                break;
+            case 'U':
+                [x, z] = this.rotateDimension(x, z, clockwise);
+                this.rotateColors(cubie.colors, ['front', 'right', 'back', 'left'], clockwise);
+                break;
+            case 'D':
+                [x, z] = this.rotateDimension(x, z, !clockwise);
+                this.rotateColors(cubie.colors, ['front', 'left', 'back', 'right'], clockwise);
+                break;
+            case 'F':
+                [x, y] = this.rotateDimension(x, y, clockwise);
+                this.rotateColors(cubie.colors, ['top', 'right', 'bottom', 'left'], clockwise);
+                break;
+            case 'B':
+                [x, y] = this.rotateDimension(x, y, !clockwise);
+                this.rotateColors(cubie.colors, ['top', 'right', 'bottom', 'left'], !clockwise);
+                break;
+        }
+        cubie.position = [x, y, z];
+    }
+
+    // 辅助函数：旋转坐标
+    rotateDimension(a, b, clockwise) {
+        return clockwise ? [1 - b, a] : [b, 1 - a];
+    }
+
+    // 辅助函数：旋转颜色
+    rotateColors(colors, faceOrder, clockwise) {
+        const temp = colors[faceOrder[0]];
+        if (clockwise) {
+            colors[faceOrder[0]] = colors[faceOrder[3]];
+            colors[faceOrder[3]] = colors[faceOrder[2]];
+            colors[faceOrder[2]] = colors[faceOrder[1]];
+            colors[faceOrder[1]] = temp;
+        } else {
+            colors[faceOrder[0]] = colors[faceOrder[1]];
+            colors[faceOrder[1]] = colors[faceOrder[2]];
+            colors[faceOrder[2]] = colors[faceOrder[3]];
+            colors[faceOrder[3]] = temp;
+        }
+    }
+
+    // 重置魔方
+    reset() {
+        this.initCube();
+        this.cubeElement.style.transform = 'rotateX(-20deg) rotateY(-30deg)'; // 重置视角
+    }
+}
+
+const rubiksCube = new RubiksCube2x2();
+
+function rotate(face, clockwise) {
+    rubiksCube.rotate(face, clockwise);
+    setTimeout(() => {
+       
+    }, 300);
+}
+
+function resetCube() {
+    rubiksCube.reset();
+}
+</script>
+<p style="margin-top: 20px; font-size: 0.8em; color: #777;">Made by wofiporia</p>
+</body>
+</html>
